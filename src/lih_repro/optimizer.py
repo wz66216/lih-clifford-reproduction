@@ -16,6 +16,18 @@ class OptimizerConfig:
     continuous_starts: int
     greedy_iterations: int
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.seed, int) or isinstance(self.seed, bool):
+            raise TypeError("seed must be an integer")
+        if not isinstance(self.continuous_starts, int) or isinstance(self.continuous_starts, bool):
+            raise TypeError("continuous_starts must be an integer")
+        if self.continuous_starts < 1:
+            raise ValueError("continuous_starts must be >= 1")
+        if not isinstance(self.greedy_iterations, int) or isinstance(self.greedy_iterations, bool):
+            raise TypeError("greedy_iterations must be an integer")
+        if self.greedy_iterations < 0:
+            raise ValueError("greedy_iterations must be >= 0")
+
 
 @dataclass(frozen=True)
 class OptimizationResult:
@@ -37,6 +49,15 @@ def variational_energy(hamiltonian, n_qubits, layers, clifford_choices, rz_sites
 
 
 def optimize_for_k(hamiltonian: PauliHamiltonian, k: int, layers: int, config: OptimizerConfig) -> OptimizationResult:
+    if not isinstance(k, int) or isinstance(k, bool):
+        raise TypeError("k must be an integer")
+    if k < 0:
+        raise ValueError("k must be >= 0")
+    if not isinstance(layers, int) or isinstance(layers, bool):
+        raise TypeError("layers must be an integer")
+    if layers < 0:
+        raise ValueError("layers must be >= 0")
+
     rng = np.random.default_rng(config.seed + 1009 * k + 9173 * hamiltonian.n_qubits)
     n_cliffords = layers * max(hamiltonian.n_qubits - 1, 0)
     cliffords = tuple(int(x) for x in rng.integers(0, 16, size=n_cliffords))
@@ -61,9 +82,20 @@ def optimize_for_k(hamiltonian: PauliHamiltonian, k: int, layers: int, config: O
                     best_theta = candidate_theta
                     best_energy = candidate_energy
             cliffords = tuple(best_choice if i == index else value for i, value in enumerate(cliffords))
-            theta = best_theta
-            energy = best_energy
-            trace.append({"iteration": iteration, "energy": energy, "kind": "clifford", "index": index})
+            previous_energy = energy
+            accepted = best_energy < previous_energy
+            if accepted:
+                theta = best_theta
+                energy = best_energy
+            trace.append({
+                "iteration": iteration,
+                "kind": "clifford",
+                "index": index,
+                "choice": cliffords[index],
+                "previous_energy": previous_energy,
+                "energy": energy,
+                "accepted": accepted,
+            })
         elif k > 0:
             index = int(rng.integers(0, k))
             best_site = rz_sites[index]
@@ -80,9 +112,20 @@ def optimize_for_k(hamiltonian: PauliHamiltonian, k: int, layers: int, config: O
                     best_theta = candidate_theta
                     best_energy = candidate_energy
             rz_sites = tuple(best_site if i == index else value for i, value in enumerate(rz_sites))
-            theta = best_theta
-            energy = best_energy
-            trace.append({"iteration": iteration, "energy": energy, "kind": "rz_site", "index": index})
+            previous_energy = energy
+            accepted = best_energy < previous_energy
+            if accepted:
+                theta = best_theta
+                energy = best_energy
+            trace.append({
+                "iteration": iteration,
+                "kind": "rz_site",
+                "index": index,
+                "site": rz_sites[index],
+                "previous_energy": previous_energy,
+                "energy": energy,
+                "accepted": accepted,
+            })
 
     return OptimizationResult(
         energy=float(energy),
@@ -115,9 +158,18 @@ def _optimize_theta(
             return variational_energy(hamiltonian, hamiltonian.n_qubits, layers, cliffords, rz_sites, values)
 
         result = minimize(objective, initial, method="L-BFGS-B", bounds=bounds, options={"maxiter": 50})
+        if not result.success:
+            continue
+        if not np.isfinite(result.fun):
+            continue
+        if not np.all(np.isfinite(result.x)):
+            continue
         energy = float(result.fun)
         if energy < best_energy:
             best_energy = energy
             best_theta = tuple(float(x) for x in result.x)
+
+    if not np.isfinite(best_energy):
+        raise RuntimeError("theta optimization failed to find a finite successful candidate")
 
     return best_theta, best_energy
