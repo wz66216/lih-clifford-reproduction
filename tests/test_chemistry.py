@@ -26,6 +26,19 @@ def test_load_or_generate_reads_existing_cache(tmp_path):
     assert ham.metadata["source"] == "cache-test"
 
 
+def test_load_or_generate_rejects_cached_synthetic_fixture_when_disallowed(tmp_path):
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    cache_file = cache_dir / "lih_1.400000.json"
+    cache_file.write_text(
+        json.dumps(synthetic_lih_fixture(1.4).to_dict()),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(DependencyUnavailable, match="synthetic-fixture.*allow_synthetic_fixture=False"):
+        load_or_generate_hamiltonian(1.4, cache_dir=cache_dir, allow_synthetic_fixture=False)
+
+
 def test_synthetic_fixture_is_deterministic_8_qubit_hamiltonian():
     first = synthetic_lih_fixture(2.0)
     second = synthetic_lih_fixture(2.0)

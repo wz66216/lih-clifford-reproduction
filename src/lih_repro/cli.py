@@ -32,6 +32,13 @@ def run_from_config(config_path: Path) -> dict[str, Path]:
             cache_dir=cache_dir,
             allow_synthetic_fixture=bool(config["allow_synthetic_fixture"]),
         )
+        configured_n_qubits = int(config["n_qubits"])
+        actual_n_qubits = int(hamiltonian.n_qubits)
+        if actual_n_qubits != configured_n_qubits:
+            raise ValueError(
+                f"Config n_qubits={configured_n_qubits} does not match cached/generated Hamiltonian n_qubits={actual_n_qubits} "
+                f"for distance {float(distance)} in cache_dir={cache_dir}."
+            )
         source = str(hamiltonian.metadata.get("source", "unknown"))
         if source == "synthetic-fixture":
             used_synthetic_fixture = True

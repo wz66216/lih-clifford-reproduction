@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import math
-import importlib
 import importlib.util
 from pathlib import Path
 
@@ -33,7 +32,13 @@ def load_or_generate_hamiltonian(
     cache_dir.mkdir(parents=True, exist_ok=True)
     path = cache_path_for_distance(cache_dir, distance_angstrom)
     if path.exists():
-        return PauliHamiltonian.from_dict(json.loads(path.read_text(encoding="utf-8")))
+        cached = PauliHamiltonian.from_dict(json.loads(path.read_text(encoding="utf-8")))
+        if cached.metadata.get("source") == "synthetic-fixture" and not allow_synthetic_fixture:
+            raise DependencyUnavailable(
+                f"Cached synthetic-fixture Hamiltonian at {path} was found, but allow_synthetic_fixture=False. "
+                "Delete the cache or enable synthetic fixtures; real cached Hamiltonians are still allowed."
+            )
+        return cached
 
     if _openfermion_available():
         try:
