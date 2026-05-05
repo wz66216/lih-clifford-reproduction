@@ -34,44 +34,38 @@ def _rz(theta):
     return np.array([[np.exp(-0.5j * theta), 0.0], [0.0, np.exp(0.5j * theta)]], dtype=complex)
 
 
-def _single_gate_for_choice(choice: int):
-    gates = {
-        0: np.eye(2, dtype=complex),
-        1: np.array([[0, 1], [1, 0]], dtype=complex),
-        2: np.array([[0, -1j], [1j, 0]], dtype=complex),
-        3: np.array([[1, 0], [0, -1]], dtype=complex),
-    }
-    return gates.get(choice % 4, np.eye(2, dtype=complex))
+def _single_gate_for_choice(choice: int) -> tuple[np.ndarray, np.ndarray]:
+    i = np.array([[1, 0], [0, 1]], dtype=complex)
+    h = (1 / np.sqrt(2)) * np.array([[1, 1], [1, -1]], dtype=complex)
+    s = np.array([[1, 0], [0, 1j]], dtype=complex)
+    gates = (i, h, s, h @ s)
+    return gates[choice % 4], gates[(choice // 4) % 4]
 
 
-def _apply_single_qubit_gate(state, gate, qubit, n_qubits):
+def _apply_single_qubit_gate(state: np.ndarray, n_qubits: int, qubit: int, gate: np.ndarray) -> np.ndarray:
+    reshaped = state.reshape([2] * n_qubits)
+    moved = np.moveaxis(reshaped, qubit, 0).reshape(2, -1)
+    updated = gate @ moved
+    restored = np.moveaxis(updated.reshape([2] + [2] * (n_qubits - 1)), 0, qubit)
+    return restored.reshape(-1)
+
+
+def _apply_cz(state: np.ndarray, n_qubits: int, q0: int, q1: int) -> np.ndarray:
     out = state.copy()
-    step = 2 ** qubit
-    period = step * 2
-    for base in range(0, len(state), period):
-        for offset in range(step):
-            i0 = base + offset
-            i1 = i0 + step
-            a, b = state[i0], state[i1]
-            out[i0] = gate[0, 0] * a + gate[0, 1] * b
-            out[i1] = gate[1, 0] * a + gate[1, 1] * b
-    return out
-
-
-def _apply_cz(state, q0, q1, n_qubits):
-    out = state.copy()
-    for idx in range(len(state)):
-        if ((idx >> q0) & 1) and ((idx >> q1) & 1):
+    for idx in range(out.size):
+        bit0 = (idx >> (n_qubits - 1 - q0)) & 1
+        bit1 = (idx >> (n_qubits - 1 - q1)) & 1
+        if bit0 and bit1:
             out[idx] *= -1
     return out
 
 
-def _apply_two_qubit_clifford(state, choice, q0, q1, n_qubits):
-    state = _apply_single_qubit_gate(state, _single_gate_for_choice(choice), q0, n_qubits)
-    if choice % 2:
-        state = _apply_single_qubit_gate(state, _single_gate_for_choice(choice + 1), q1, n_qubits)
-    if choice & 4:
-        state = _apply_cz(state, q0, q1, n_qubits)
+def _apply_two_qubit_clifford(state: np.ndarray, n_qubits: int, q0: int, q1: int, choice: int) -> np.ndarray:
+    first, second = _single_gate_for_choice(choice)
+    state = _apply_single_qubit_gate(state, n_qubits, q0, first)
+    state = _apply_single_qubit_gate(state, n_qubits, q1, second)
+    if choice % 2 == 1:
+        state = _apply_cz(state, n_qubits, q0, q1)
     return state
 
 
@@ -84,10 +78,10 @@ def run_ansatz_state(spec: CircuitSpec, theta):
     choice_idx = 0
     for _layer in range(spec.layers):
         for q in range(spec.n_qubits - 1):
-            state = _apply_two_qubit_clifford(state, spec.clifford_choices[choice_idx], q, q + 1, spec.n_qubits)
+            state = _apply_two_qubit_clifford(state, spec.n_qubits, q, q + 1, spec.clifford_choices[choice_idx])
             choice_idx += 1
-        for angle, site in zip(theta, spec.rz_sites):
-            state = _apply_single_qubit_gate(state, _rz(angle), site, spec.n_qubits)
+    for angle, site in zip(theta, spec.rz_sites):
+        state = _apply_single_qubit_gate(state, spec.n_qubits, site, _rz(angle))
 
     norm = np.linalg.norm(state)
     return state if norm == 0 else state / norm
