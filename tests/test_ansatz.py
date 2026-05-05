@@ -71,3 +71,60 @@ def test_apply_cz_uses_plan_bit_order():
     updated = _apply_cz(state, 2, 0, 1)
 
     assert np.allclose(updated, np.array([0.0, 0.0, 0.0, -1.0], dtype=complex))
+
+
+@pytest.mark.parametrize(
+    "kwargs, match",
+    [
+        ({"n_qubits": 0, "layers": 0, "clifford_choices": (), "rz_sites": ()}, "n_qubits"),
+        ({"n_qubits": 2.0, "layers": 0, "clifford_choices": (), "rz_sites": ()}, "n_qubits"),
+        ({"n_qubits": True, "layers": 0, "clifford_choices": (), "rz_sites": ()}, "n_qubits"),
+        ({"n_qubits": 2, "layers": -1, "clifford_choices": (), "rz_sites": ()}, "layers"),
+        ({"n_qubits": 2, "layers": 0.0, "clifford_choices": (), "rz_sites": ()}, "layers"),
+        ({"n_qubits": 2, "layers": True, "clifford_choices": (), "rz_sites": ()}, "layers"),
+        ({"n_qubits": 2, "layers": 1, "clifford_choices": (16,), "rz_sites": ()}, "clifford"),
+        ({"n_qubits": 2, "layers": 1, "clifford_choices": (1.0,), "rz_sites": ()}, "clifford"),
+        ({"n_qubits": 2, "layers": 1, "clifford_choices": (True,), "rz_sites": ()}, "clifford"),
+        ({"n_qubits": 2, "layers": 1, "clifford_choices": (0,), "rz_sites": (2,)}, "rz site"),
+        ({"n_qubits": 2, "layers": 1, "clifford_choices": (0,), "rz_sites": (1.0,)}, "rz site"),
+        ({"n_qubits": 2, "layers": 1, "clifford_choices": (0,), "rz_sites": (True,)}, "rz site"),
+    ],
+)
+def test_circuit_spec_rejects_invalid_inputs(kwargs, match):
+    with pytest.raises((TypeError, ValueError), match=match):
+        CircuitSpec(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "theta, match",
+    [
+        (0.1, "1-D"),
+        (np.array([[0.1]]), "1-D"),
+        (np.array([0.1, np.nan]), "finite"),
+        (np.array([0.1, np.inf]), "finite"),
+        (np.array([0.1]), "length"),
+    ],
+)
+def test_run_ansatz_state_rejects_invalid_theta(theta, match):
+    spec = CircuitSpec(n_qubits=1, layers=1, clifford_choices=(), rz_sites=(0, 0))
+
+    with pytest.raises(ValueError, match=match):
+        run_ansatz_state(spec, theta)
+
+
+def test_choice_one_applies_h_on_first_qubit_and_cz():
+    spec = CircuitSpec(n_qubits=2, layers=1, clifford_choices=(1,), rz_sites=())
+
+    state = run_ansatz_state(spec, np.array([], dtype=float))
+
+    expected = np.array([1, 0, 1, 0], dtype=complex) / np.sqrt(2)
+    assert np.allclose(state, expected)
+
+
+def test_rz_on_first_qubit_uses_plan_phase():
+    spec = CircuitSpec(n_qubits=1, layers=0, clifford_choices=(), rz_sites=(0,))
+
+    state = run_ansatz_state(spec, np.array([np.pi], dtype=float))
+
+    expected = np.array([np.exp(-0.5j * np.pi), 0.0], dtype=complex)
+    assert np.allclose(state, expected)

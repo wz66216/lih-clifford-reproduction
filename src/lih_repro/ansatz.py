@@ -13,13 +13,25 @@ class CircuitSpec:
     rz_sites: tuple[int, ...]
 
     def __post_init__(self):
+        if not isinstance(self.n_qubits, int) or isinstance(self.n_qubits, bool):
+            raise TypeError("n_qubits must be an integer")
+        if self.n_qubits <= 0:
+            raise ValueError("n_qubits must be > 0")
+        if not isinstance(self.layers, int) or isinstance(self.layers, bool):
+            raise TypeError("layers must be an integer")
+        if self.layers < 0:
+            raise ValueError("layers must be >= 0")
         expected = self.layers * max(self.n_qubits - 1, 0)
         if len(self.clifford_choices) != expected:
             raise ValueError("clifford_choices length does not match layers")
         for choice in self.clifford_choices:
+            if not isinstance(choice, int) or isinstance(choice, bool):
+                raise TypeError("clifford choice must be an integer")
             if not 0 <= choice <= 15:
                 raise ValueError("clifford choice must be in 0..15")
         for site in self.rz_sites:
+            if not isinstance(site, int) or isinstance(site, bool):
+                raise TypeError("rz site must be an integer")
             if not 0 <= site < self.n_qubits:
                 raise ValueError("rz site out of range")
 
@@ -71,6 +83,10 @@ def _apply_two_qubit_clifford(state: np.ndarray, n_qubits: int, q0: int, q1: int
 
 def run_ansatz_state(spec: CircuitSpec, theta):
     theta = np.asarray(theta, dtype=float)
+    if theta.ndim != 1:
+        raise ValueError("theta must be 1-D")
+    if not np.all(np.isfinite(theta)):
+        raise ValueError("theta must contain only finite values")
     if len(theta) != len(spec.rz_sites):
         raise ValueError("theta length does not match rz_sites")
 
