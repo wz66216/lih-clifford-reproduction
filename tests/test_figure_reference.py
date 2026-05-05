@@ -6,6 +6,8 @@ def test_reference_pdf_status_reports_missing_file(tmp_path):
 
     assert status["exists"] is False
     assert status["path"].endswith("missing.pdf")
+    assert status["size_bytes"] == 0
+    assert status["role"] == "auxiliary visual validation only"
 
 
 def test_load_reference_csv_reads_named_curves(tmp_path):
