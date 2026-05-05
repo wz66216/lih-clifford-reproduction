@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import importlib
+import importlib.util
 from pathlib import Path
 
 from lih_repro.pauli import PauliHamiltonian, PauliTerm
@@ -12,18 +13,15 @@ class DependencyUnavailable(RuntimeError):
     """Raised when optional chemistry dependencies are required but absent."""
 
 
+_REQUIRED_CHEMISTRY_MODULES = ("openfermion", "openfermionpyscf", "pyscf")
+
+
 def cache_path_for_distance(cache_dir: Path, distance_angstrom: float) -> Path:
     return Path(cache_dir) / f"lih_{distance_angstrom:.6f}.json"
 
 
 def _openfermion_available() -> bool:
-    try:
-        importlib.import_module("openfermion")
-        importlib.import_module("openfermionpyscf")
-        importlib.import_module("pyscf")
-    except (ImportError, ModuleNotFoundError):
-        return False
-    return True
+    return all(importlib.util.find_spec(name) is not None for name in _REQUIRED_CHEMISTRY_MODULES)
 
 
 def load_or_generate_hamiltonian(

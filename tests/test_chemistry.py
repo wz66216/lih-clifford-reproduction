@@ -62,13 +62,20 @@ def test_synthetic_fixture_falls_back_when_generation_stub_raises(tmp_path, monk
     assert (tmp_path / "lih_1.400000.json").exists()
 
 
-def test_dependency_detection_ignores_non_import_errors(monkeypatch):
+def test_dependency_detection_returns_false_when_one_top_level_module_missing(monkeypatch):
     import lih_repro.chemistry as chemistry
 
-    def boom(name):
-        raise RuntimeError("broken install")
+    def fake_find_spec(name):
+        return object() if name != "openfermionpyscf" else None
 
-    monkeypatch.setattr(chemistry.importlib, "import_module", boom)
+    monkeypatch.setattr(chemistry.importlib.util, "find_spec", fake_find_spec)
 
-    with pytest.raises(RuntimeError, match="broken install"):
-        chemistry._openfermion_available()
+    assert chemistry._openfermion_available() is False
+
+
+def test_dependency_detection_returns_true_when_all_top_level_modules_present(monkeypatch):
+    import lih_repro.chemistry as chemistry
+
+    monkeypatch.setattr(chemistry.importlib.util, "find_spec", lambda name: object())
+
+    assert chemistry._openfermion_available() is True
