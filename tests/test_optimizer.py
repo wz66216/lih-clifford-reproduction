@@ -92,3 +92,18 @@ def test_optimizer_reproducible_for_nontrivial_case():
     assert first.energy == second.energy
     assert first.circuit == second.circuit
     assert first.theta == second.theta
+
+
+def test_optimize_for_k_with_n_init_returns_best():
+    ham = PauliHamiltonian(
+        n_qubits=2,
+        terms=(PauliTerm(0.5, "ZI"), PauliTerm(-0.25, "IZ"), PauliTerm(0.1, "ZZ")),
+        metadata={},
+    )
+    config_single = OptimizerConfig(seed=7, continuous_starts=1, greedy_iterations=1, n_init=1)
+    config_multi = OptimizerConfig(seed=7, continuous_starts=1, greedy_iterations=1, n_init=3)
+
+    result_single = optimize_for_k(ham, k=1, layers=1, config=config_single)
+    result_multi = optimize_for_k(ham, k=1, layers=1, config=config_multi)
+
+    assert result_multi.energy <= result_single.energy
