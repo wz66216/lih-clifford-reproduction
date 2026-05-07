@@ -16,12 +16,14 @@ def test_generate_lih_hamiltonians_defaults_to_repo_data_dir():
     assert script.default_output_dir() == root / "data" / "hamiltonians"
 
 
-def test_generate_lih_hamiltonians_uses_quick_config_distances():
+def test_generate_lih_hamiltonians_includes_all_config_distances():
     script = _load_script_module()
 
-    assert script.distances_for_generation() == [
-        1.0, 1.3, 1.45, 1.6, 1.8, 2.0, 2.3, 2.6, 2.9, 3.2, 3.5, 3.8, 4.1, 4.5
-    ]
+    distances = script.distances_for_generation()
+
+    assert distances == sorted(distances)
+    assert 3.0 in distances
+    assert 3.4 in distances
 
 
 def _load_script_module():

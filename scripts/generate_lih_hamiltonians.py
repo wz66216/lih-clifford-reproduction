@@ -23,7 +23,24 @@ def default_output_dir() -> Path:
 
 
 def distances_for_generation() -> list[float]:
-    return list(DEFAULT_DISTANCES)
+    distances = set(DEFAULT_DISTANCES)
+    config_dir = repo_root() / "configs"
+    for config_path in sorted(config_dir.glob("*.json")):
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise RuntimeError(f"Failed to parse config {config_path}") from exc
+
+        if "distances_angstrom" not in config:
+            continue
+
+        try:
+            for distance in config["distances_angstrom"]:
+                distances.add(float(distance))
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(f"Invalid distances_angstrom in {config_path}") from exc
+
+    return sorted(distances)
 
 
 def generate_lih_hamiltonian(distance: float) -> dict:
