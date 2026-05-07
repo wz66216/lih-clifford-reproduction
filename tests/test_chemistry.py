@@ -1,8 +1,36 @@
 import json
+import importlib.util
+from pathlib import Path
 
 import pytest
 
 from lih_repro.chemistry import DependencyUnavailable, load_or_generate_hamiltonian, synthetic_lih_fixture
+
+
+def test_generate_lih_hamiltonians_defaults_to_repo_data_dir():
+    script = _load_script_module()
+
+    root = script.repo_root()
+
+    assert root.name == "classmate-integration"
+    assert script.default_output_dir() == root / "data" / "hamiltonians"
+
+
+def test_generate_lih_hamiltonians_uses_quick_config_distances():
+    script = _load_script_module()
+
+    assert script.distances_for_generation() == [
+        1.0, 1.3, 1.45, 1.6, 1.8, 2.0, 2.3, 2.6, 2.9, 3.2, 3.5, 3.8, 4.1, 4.5
+    ]
+
+
+def _load_script_module():
+    path = Path(__file__).resolve().parents[1] / "scripts" / "generate_lih_hamiltonians.py"
+    spec = importlib.util.spec_from_file_location("generate_lih_hamiltonians", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_load_or_generate_reads_existing_cache(tmp_path):
