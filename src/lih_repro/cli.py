@@ -9,6 +9,8 @@ os.environ["MKL_NUM_THREADS"] = "1"
 import argparse
 import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +19,18 @@ from lih_repro.figure_reference import load_reference_csv, reference_pdf_status
 from lih_repro.optimizer import OptimizerConfig, OptimizationResult, _run_single_restart
 from lih_repro.plotting import plot_energy_gaps
 from lih_repro.report import write_report
+
+
+def _safe_worker_count(requested_workers: int, task_count: int) -> int:
+    requested_workers = int(requested_workers)
+    task_count = int(task_count)
+    if task_count < 1:
+        return 1
+
+    cpu_count = os.cpu_count() or 1
+    windows_limit = 61 if sys.platform == "win32" else cpu_count
+    safe_workers = min(requested_workers, task_count, cpu_count, windows_limit)
+    return max(1, safe_workers)
 
 
 def run_from_config(config_path: Path) -> dict[str, Path]:
@@ -32,7 +46,7 @@ def run_from_config(config_path: Path) -> dict[str, Path]:
         n_init=int(config.get("n_init", 1)),
         rz_layer=int(config.get("rz_layer", -1)),
     )
-    n_workers = int(config.get("max_workers", 128))
+    n_workers = _safe_worker_count(int(config.get("max_workers", 128)), len(config["distances_angstrom"]) * len(config["k_values"]))
     layers = int(config["layers"])
     used_synthetic_fixture = False
 
