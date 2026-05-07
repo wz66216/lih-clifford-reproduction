@@ -78,5 +78,27 @@ class PauliHamiltonian:
         norm = np.linalg.norm(vector)
         if not np.isclose(norm, 1.0):
             raise ValueError(f"state norm must be 1.0, got {norm}")
-        value = np.vdot(vector, self.to_dense_matrix() @ vector)
+
+        indices = np.arange(vector.size)
+        value = 0.0 + 0.0j
+        for term in self.terms:
+            target_indices = indices.copy()
+            phases = np.ones(vector.size, dtype=complex)
+            for qubit, label in enumerate(term.pauli):
+                if label == "I":
+                    continue
+
+                bit_mask = 1 << (self.n_qubits - 1 - qubit)
+                bits = (indices & bit_mask) != 0
+
+                if label == "X":
+                    target_indices ^= bit_mask
+                elif label == "Y":
+                    target_indices ^= bit_mask
+                    phases *= np.where(bits, -1j, 1j)
+                elif label == "Z":
+                    phases *= np.where(bits, -1.0, 1.0)
+
+            value += term.coefficient * np.sum(np.conjugate(vector[target_indices]) * phases * vector)
+
         return float(value.real)

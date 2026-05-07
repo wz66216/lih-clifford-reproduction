@@ -94,6 +94,55 @@ def test_run_from_config_clamps_large_max_workers(monkeypatch, tmp_path):
     assert captured["max_workers"] == 1
 
 
+def test_run_from_config_counts_n_init_tasks_for_worker_clamp(monkeypatch, tmp_path):
+    captured = {}
+
+    class DummyExecutor:
+        def __init__(self, max_workers):
+            captured["max_workers"] = max_workers
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def submit(self, fn, *args, **kwargs):
+            class DummyFuture:
+                def result(self_inner):
+                    return fn(*args, **kwargs)
+
+            return DummyFuture()
+
+    monkeypatch.setattr(cli.os, "cpu_count", lambda: 128)
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.setattr(cli, "ProcessPoolExecutor", DummyExecutor)
+    monkeypatch.setattr(cli, "as_completed", lambda futures: list(futures))
+
+    config = {
+        "distances_angstrom": [1.4],
+        "k_values": [0],
+        "n_qubits": 8,
+        "layers": 1,
+        "seed": 123,
+        "continuous_starts": 1,
+        "greedy_iterations": 1,
+        "n_init": 4,
+        "max_workers": 128,
+        "output_dir": str(tmp_path / "out"),
+        "hamiltonian_cache_dir": str(tmp_path / "cache"),
+        "reference_pdf": str(tmp_path / "ener.pdf"),
+        "reference_csv": str(tmp_path / "reference.csv"),
+        "allow_synthetic_fixture": True,
+    }
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    run_from_config(config_path)
+
+    assert captured["max_workers"] == 4
+
+
 def test_run_from_config_rejects_qubit_mismatch(tmp_path):
     config = {
         "distances_angstrom": [1.4],

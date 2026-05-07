@@ -12,7 +12,7 @@ def test_generate_lih_hamiltonians_defaults_to_repo_data_dir():
 
     root = script.repo_root()
 
-    assert root.name == "classmate-integration"
+    assert root == Path(__file__).resolve().parents[1]
     assert script.default_output_dir() == root / "data" / "hamiltonians"
 
 

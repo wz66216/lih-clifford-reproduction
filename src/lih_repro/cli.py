@@ -46,7 +46,8 @@ def run_from_config(config_path: Path) -> dict[str, Path]:
         n_init=int(config.get("n_init", 1)),
         rz_layer=int(config.get("rz_layer", -1)),
     )
-    n_workers = _safe_worker_count(int(config.get("max_workers", 128)), len(config["distances_angstrom"]) * len(config["k_values"]))
+    n_task_slots = len(config["distances_angstrom"]) * len(config["k_values"]) * opt_config.n_init
+    n_workers = _safe_worker_count(int(config.get("max_workers", 128)), n_task_slots)
     layers = int(config["layers"])
     used_synthetic_fixture = False
 

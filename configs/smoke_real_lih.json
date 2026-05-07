@@ -1,0 +1,17 @@
+{
+  "distances_angstrom": [3.0],
+  "k_values": [0],
+  "n_qubits": 8,
+  "layers": 1,
+  "seed": 1234,
+  "continuous_starts": 1,
+  "greedy_iterations": 1,
+  "n_init": 1,
+  "rz_layer": 1,
+  "max_workers": 1,
+  "output_dir": "results/smoke_real_lih",
+  "hamiltonian_cache_dir": "data/hamiltonians",
+  "reference_pdf": "arXiv-2308.11616v2/figs/ener.pdf",
+  "reference_csv": "data/reference/ener_digitized.csv",
+  "allow_synthetic_fixture": false
+}
