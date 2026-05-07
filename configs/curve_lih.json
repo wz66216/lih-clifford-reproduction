@@ -1,0 +1,17 @@
+{
+  "distances_angstrom": [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5],
+  "k_values": [0, 1],
+  "n_qubits": 8,
+  "layers": 2,
+  "seed": 1234,
+  "continuous_starts": 3,
+  "greedy_iterations": 20,
+  "n_init": 2,
+  "rz_layer": 1,
+  "max_workers": 0,
+  "output_dir": "results/curve_lih",
+  "hamiltonian_cache_dir": "data/hamiltonians",
+  "reference_pdf": "arXiv-2308.11616v2/figs/ener.pdf",
+  "reference_csv": "data/reference/ener_digitized.csv",
+  "allow_synthetic_fixture": false
+}
