@@ -39,9 +39,9 @@ Clifford 门 (H、S、CNOT) 组成的电路虽然能产生大量纠缠，但根�
 
 n-qubit 体系上所有 Pauli 矩阵张量积的集合（带相位 ±1, ±i）：
 
-$$G_n = \{i^k \\;\\sigma^{i_1} \\otimes \\sigma^{i_2} \\otimes \\cdots \\otimes \\sigma^{i_n} \\;|\\; k,i_h \\in \\{0,1,2,3\\}\\}$$
+$$G_n = \{ i^k \cdot P_1 \otimes P_2 \otimes \cdots \otimes P_n \mid k \in \{0,1,2,3\},\; P_h \in \{I,X,Y,Z\} \}$$
 
-共 4ⁿ⁺¹ 个元素。
+共 `4^(n+1)` 个元素。
 
 ### 2.2 稳定子群 S
 
@@ -49,7 +49,7 @@ Pauli 群的子群，满足两个条件：
 1. 阿贝尔群（所有元素彼此交换）
 2. 不含 −I
 
-n-qubit 的满稳定子群由 n 个生成元张成：S = ⟨s₁, s₂, ..., sₙ⟩，共有 2ⁿ 个元素。
+n-qubit 的满稳定子群由 n 个生成元张成：`S = ⟨s₁, s₂, ..., sₙ⟩`，共有 `2ⁿ` 个元素。
 
 ### 2.3 稳定子态
 
@@ -78,15 +78,15 @@ d₁ = Z⊗I,  d₂ = I⊗X
 
 ### 2.5 稳定子基
 
-$$\mathcal{B}(\mathcal{T}) = \\{ d \\,|\\psi_S\\rangle \\;|\\; d \\in \mathcal{D} \\}$$
+$$\mathcal{B}(\mathcal{T}) = \{ d \vert\psi_S\rangle \mid d \in \mathcal{D} \}$$
 
-有 2ⁿ 个态，构成完整的正交基。本质上是从 |0...0⟩ 旋转到以 tableau 定义的新基底。
+有 2ⁿ 个态，构成完整的正交基。
 
 ### 2.6 广义稳定子表示
 
 任意纯态在这个基底下的展开：
 
-$$\rho = \sum_{i=1}^{2^n} \sum_{j=1}^{2^n} \chi_{ij} \\; d_i \\, \rho_S \\, d_j$$
+$$\rho = \sum_{i=1}^{2^n} \sum_{j=1}^{2^n} \chi_{ij} \; d_i \rho_S d_j$$
 
 **χ 的稀疏度 ‖χ‖₀ 决定模拟复杂度。**
 
@@ -98,7 +98,7 @@ $$\rho = \sum_{i=1}^{2^n} \sum_{j=1}^{2^n} \chi_{ij} \\; d_i \\, \rho_S \\, d_j$
 
 作用只改变 tableau，不改变 χ：
 
-$$C \rho C^{\dagger} = \sum_{ij} \chi_{ij} \\; (C d_i C^{\dagger}) \\; (C \rho_S C^{\dagger}) \\; (C d_j C^{\dagger})$$
+$$C \rho C^{\dagger} = \sum_{ij} \chi_{ij} \; (C d_i C^{\dagger}) \; (C \rho_S C^{\dagger}) \; (C d_j C^{\dagger})$$
 
 等价于：
 
@@ -110,9 +110,9 @@ $$(\chi, \mathcal{S}, \mathcal{D}) \rightarrow (\chi, \mathcal{S}', \mathcal{D}'
 
 Rz(θ) 不是 Clifford 门。把它写成 Pauli 串的线性组合：
 
-$$R_z(\theta) = \cos\frac{\theta}{2} \\; I - i \sin\frac{\theta}{2} \\; Z$$
+$$R_z(\theta) = \cos\frac{\theta}{2} \; I - i \sin\frac{\theta}{2} \; Z$$
 
-$$\Rightarrow R_z(\theta) \\, \rho \\, R_z^{\dagger}(\theta) = \sum_{m,n} \phi_{mn} \\; P_m \\, \rho \\, P_n^{\dagger}$$
+$$\Rightarrow R_z(\theta) \rho R_z^{\dagger}(\theta) = \sum_{m,n} \phi_{mn} \; P_m \rho P_n^{\dagger}$$
 
 其中 Pₘ, Pₙ 是 Pauli 串，φₘₙ 是复系数。**一个 Rz 门有 4 项。**
 
@@ -124,7 +124,7 @@ $$\Rightarrow R_z(\theta) \\, \rho \\, R_z^{\dagger}(\theta) = \sum_{m,n} \phi_{
 2. 更新 χ 矩阵：χ 中原来在位置 (i, j) 的项迁移到新位置 (i', j')
 3. 对所有项求和
 
-$$\chi'_{i'j'} = \sum_{m,n} \phi_{mn} \\, \chi_{ij} \\, \alpha_m \alpha_n^* \\, (-1)^{c_m \cdot i + c_n \cdot j}$$
+$$\chi'_{i'j'} = \sum_{m,n} \phi_{mn} \; \chi_{ij} \; \alpha_m \alpha_n^* \; (-1)^{c_m \cdot i + c_n \cdot j}$$
 
 ---
 
@@ -177,7 +177,7 @@ Algorithm: Decompose(P, T)
 
 **关键洞察：**
 
-$$\text{当 } k \leq O(\log n):\; 4^k = \text{poly}(n) \Rightarrow \text{整个模拟是多项式时间}$$
+> 当 `k ≤ O(log n)` 时，`4^k = poly(n)`，整个模拟仍是**多项式时间**。
 
 这称为"量子魔法梯子"(Quantum Magic Ladder)：k 从 0 开始逐步增加，每增加 1 就"多爬一级"，精度提高但经典计算量翻 4 倍。
 
@@ -215,4 +215,33 @@ Tableau 模拟 (= 极坐标):
 
 ---
 
+## 8. 补充：Tableau 二进编码
+
+在实际实现（如 PyClifford）中，tableau 存储为 `(2n+1) × 2n` 的二元矩阵：
+
+```
+tableau = [ X表 | Z表 | 相位 ]
+         └─n列─┘└─n列─┘└1列┘
+         
+前 n 行：destabilizer generators  (d₁...dₙ)
+后 n 行：stabilizer generators    (s₁...sₙ)
+
+X表中的1表示该位置有 X/Y 算符
+Z表中的1表示该位置有 Z/Y 算符
+```
+
+**例子 (n=2，对应 Bell 态 |Φ+⟩)：**
+
+```
+d₁: Z⊗I →  X=[0,0]  Z=[1,0]  →  0 0 | 1 0 | 0
+d₂: I⊗X →  X=[0,1]  Z=[0,0]  →  0 1 | 0 0 | 0
+s₁: X⊗X →  X=[1,1]  Z=[0,0]  →  1 1 | 0 0 | 0
+s₂: Z⊗Z →  X=[0,0]  Z=[1,1]  →  0 0 | 1 1 | 0
+```
+
+Clifford 门（H/S/CNOT）在这个编码下被实现为 tableau 行上的**初等行操作**（类似高斯消元），复杂度 O(n²)。这就是为什么 Clifford 模拟极快。
+
+---
+
 > 参考：arXiv:2308.11616v2, Appendix A "Classical simulation with the generalized stabilizer representation"
+> 参考：Scott Aaronson, Daniel Gottesman. "Improved simulation of stabilizer circuits." Phys. Rev. A 70, 052328 (2004)

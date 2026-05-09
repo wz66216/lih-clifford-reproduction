@@ -156,7 +156,7 @@ $$R_z(\theta) = e^{-i\theta Z/2}$$
 
 定义变分能量函数：
 
-$$f(X, \Theta) = \langle 0 | U^\dagger(X, \Theta) H U(X, \Theta) | 0 \rangle$$
+$$f(X, \Theta) = \langle 0 \vert U^\dagger(X, \Theta) \; H \; U(X, \Theta) \vert 0 \rangle$$
 
 即：从 |0⟩ 出发，经过 Clifford+kRz 线路 U，然后测量变换后的 Hamiltonian 的期望值。
 
