@@ -18,12 +18,29 @@ class SBRGUnavailable(RuntimeError):
     """Raised when SBRG is required but the library is not installed."""
 
 
-_SBRG_SPEC = importlib.util.find_spec("SBRG")
+def _import_sbrg():
+    """Import the SBRG library or raise SBRGUnavailable with a clear message.
+
+    Uses find_spec first for a clean "not installed" path, then attempts
+    the actual import so that broken installs are also caught.
+    """
+    if importlib.util.find_spec("SBRG") is None:
+        raise SBRGUnavailable(
+            "SBRG library is not installed. "
+            "Clone github.com/hongyehu/SBRG and install dependencies via conda."
+        )
+    import SBRG  # type: ignore[import-not-found]
+
+    return SBRG
 
 
 def _sbrg_available() -> bool:
     """Return True if the SBRG library can be imported."""
-    return _SBRG_SPEC is not None
+    try:
+        _import_sbrg()
+        return True
+    except SBRGUnavailable:
+        return False
 
 
 _PAULI_TO_SBRG: dict[str, int] = {"I": 0, "X": 1, "Y": 2, "Z": 3}
@@ -31,13 +48,7 @@ _PAULI_TO_SBRG: dict[str, int] = {"I": 0, "X": 1, "Y": 2, "Z": 3}
 
 def pauli_to_sbrg_model(hamiltonian: PauliHamiltonian) -> Any:
     """Convert a PauliHamiltonian to an SBRG Model object."""
-    if not _sbrg_available():
-        raise SBRGUnavailable(
-            "SBRG library is not installed. "
-            "Clone github.com/hongyehu/SBRG and install dependencies via conda."
-        )
-
-    import SBRG as _sbrg
+    _sbrg = _import_sbrg()
 
     terms = []
     for term in hamiltonian.terms:
@@ -50,19 +61,14 @@ def pauli_to_sbrg_model(hamiltonian: PauliHamiltonian) -> Any:
 
 def compute_sbrg_baseline(hamiltonian: PauliHamiltonian) -> dict[str, Any]:
     """Run SBRG on a PauliHamiltonian and return a baseline energy dict."""
-    if not _sbrg_available():
-        raise SBRGUnavailable(
-            "SBRG library is not installed. "
-            "Clone github.com/hongyehu/SBRG and install dependencies via conda."
-        )
-
-    import SBRG as _sbrg
-
-    model = pauli_to_sbrg_model(hamiltonian)
-
+    _sbrg = None
     try:
+        _sbrg = _import_sbrg()
+        model = pauli_to_sbrg_model(hamiltonian)
         sbrg_instance = _sbrg.SBRG(model)
         sbrg_instance.run()
+    except SBRGUnavailable:
+        raise
     except Exception as exc:
         return {
             "energy": None,
