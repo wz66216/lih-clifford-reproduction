@@ -53,19 +53,52 @@ def _sbrg_available() -> bool:
 _PAULI_TO_SBRG: dict[str, int] = {"I": 0, "X": 1, "Y": 2, "Z": 3}
 
 
+def _is_identity_pauli(pauli: str) -> bool:
+    """Return True when a Pauli string is the scalar identity."""
+    return all(label == "I" for label in pauli)
+
+
+def _sbrg_terms(obj: Any) -> list[Any]:
+    """Return SBRG terms from either a Ham-like object or a plain list."""
+    if obj is None:
+        return []
+    return list(getattr(obj, "terms", obj) or [])
+
+
+def _sbrg_block_ground_energy(sbrg_instance: Any, heff_terms: list[Any]) -> float | None:
+    """Extract the best available SBRG block-ground estimate.
+
+    Real SBRG exposes grndstate_blk(), which evaluates the diagonal effective
+    Hamiltonian over stabilizer configurations. Older tests/fakes may not
+    implement it, so we keep the previous coefficient-min fallback.
+    """
+    if hasattr(sbrg_instance, "grndstate_blk"):
+        _, energy = sbrg_instance.grndstate_blk()
+        return float(energy)
+    if heff_terms:
+        return min(float(t.val) for t in heff_terms)
+    return 0.0
+
+
 def pauli_to_sbrg_model(hamiltonian: PauliHamiltonian) -> Any:
     """Convert a PauliHamiltonian to an SBRG Model object."""
     _sbrg = _import_sbrg()
 
     terms = []
+    identity_offset = 0.0
     for term in hamiltonian.terms:
+        coeff = float(term.coefficient)
+        if _is_identity_pauli(term.pauli):
+            identity_offset += coeff
+            continue
         mu = [_PAULI_TO_SBRG[label] for label in term.pauli]
         mat = _sbrg.mkMat(mu)
-        terms.append(_sbrg.Term(mat, float(term.coefficient)))
+        terms.append(_sbrg.Term(mat, coeff))
 
     model = _sbrg.Model()
     model.size = hamiltonian.n_qubits
     model.terms = terms
+    model.identity_offset = identity_offset
     return model
 
 
@@ -89,17 +122,11 @@ def compute_sbrg_baseline(hamiltonian: PauliHamiltonian) -> dict[str, Any]:
             "error": str(exc),
         }
 
-    # SBRG.Heff is a Ham object. The RG flow produces a nearly-diagonal
-    # effective Hamiltonian; min(t.val) is an approximate ground energy.
-    # For rigorous ground energy, the full effective Hamiltonian should be
-    # diagonalized or SBRG.grndstate_blk() / SBRG.energy() should be used.
-    ground_energy: float | None = None
-    n_terms_out = 0
-    if hasattr(sbrg_instance, "Heff") and sbrg_instance.Heff is not None:
-        heff_terms = sbrg_instance.Heff.terms
-        n_terms_out = len(heff_terms) if heff_terms else 0
-        if n_terms_out > 0:
-            ground_energy = min(float(t.val) for t in heff_terms)
+    offset = float(getattr(model, "identity_offset", 0.0))
+    heff_terms = _sbrg_terms(getattr(sbrg_instance, "Heff", None))
+    n_terms_out = len(heff_terms)
+    block_energy = _sbrg_block_ground_energy(sbrg_instance, heff_terms)
+    ground_energy = None if block_energy is None else offset + block_energy
 
     return {
         "energy": ground_energy,
@@ -210,9 +237,13 @@ def compute_sbrg_initializer(
     heff = getattr(sbrg_instance, "Heff", None)
     rcc = getattr(sbrg_instance, "RCC", [])
     nq = hamiltonian.n_qubits
+    offset = float(getattr(model, "identity_offset", 0.0))
 
     new_terms = []
-    heff_terms = list(getattr(heff, "terms", []) or []) if heff is not None else []
+    if abs(offset) > 1e-14:
+        new_terms.append(PT(offset, "I" * nq))
+
+    heff_terms = _sbrg_terms(heff)
     if heff_terms:
         for t in heff_terms:
             p_str = _sbrg_mat_to_pauli_string(t.mat, nq)
@@ -234,7 +265,8 @@ def compute_sbrg_initializer(
         terms=tuple(new_terms),
         metadata={**hamiltonian.metadata, "sbrg_transformed": True},
     )
-    ground_energy = min(float(t.val) for t in heff_terms)
+    block_energy = _sbrg_block_ground_energy(sbrg_instance, heff_terms)
+    ground_energy = None if block_energy is None else offset + block_energy
     baseline = {
         "energy": ground_energy,
         "status": "ok",
