@@ -17,10 +17,24 @@ def plot_energy_gaps(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     grouped: dict[int, list[tuple[float, float]]] = {}
+    hf_points: dict[float, float] = {}
     for row in rows:
         grouped.setdefault(int(row["k"]), []).append((float(row["distance_angstrom"]), float(row["energy_gap"])))
+        hf_gap = row.get("hartree_fock_gap")
+        if isinstance(hf_gap, (int, float)):
+            hf_points[float(row["distance_angstrom"])] = float(hf_gap)
 
     fig, ax = plt.subplots(figsize=(7, 4.5))
+    if hf_points:
+        points = sorted(hf_points.items())
+        ax.plot(
+            [p[0] for p in points],
+            [p[1] for p in points],
+            color="black",
+            linestyle="--",
+            marker="s",
+            label="Hartree-Fock",
+        )
     for k, points in sorted(grouped.items()):
         points = sorted(points)
         ax.plot([p[0] for p in points], [p[1] for p in points], marker="o", label=f"local k={k}")

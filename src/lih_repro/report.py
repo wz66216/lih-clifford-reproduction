@@ -40,8 +40,8 @@ def write_report(
         "",
         "## Results",
         "",
-        "| distance_angstrom | k | E0 | E | E - E0 | SBRG E | SBRG status | source |",
-        "|---:|---:|---:|---:|---:|---:|---|---|",
+        "| distance_angstrom | k | E0 | E | E - E0 | HF E | HF - E0 | SBRG E | SBRG status | source |",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
     ]
     for row in results:
         ground_energy = row.get("ground_energy")
@@ -49,7 +49,8 @@ def write_report(
         source = row.get("source", "")
         lines.append(
             f"| {row['distance_angstrom']} | {row['k']} | {ground_energy if ground_energy is not None else ''} | "
-            f"{energy if energy is not None else ''} | {row.get('energy_gap', '')} | {row.get('sbrg_energy', '')} | "
+            f"{energy if energy is not None else ''} | {row.get('energy_gap', '')} | "
+            f"{row.get('hartree_fock_energy', '')} | {row.get('hartree_fock_gap', '')} | {row.get('sbrg_energy', '')} | "
             f"{row.get('sbrg_status', '')} | {source} |"
         )
     if sbrg_baselines:

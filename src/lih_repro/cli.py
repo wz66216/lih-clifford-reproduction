@@ -71,7 +71,9 @@ def run_from_config(config_path: Path) -> dict[str, Path]:
         if ham.metadata.get("source") == "synthetic-fixture":
             used_synthetic_fixture = True
         e0 = ham.ground_energy()
-        hamiltonians[d] = (ham, e0, str(ham.metadata.get("source", "unknown")))
+        hf_energy_raw = ham.metadata.get("hf_energy")
+        hf_energy = float(hf_energy_raw) if isinstance(hf_energy_raw, (int, float)) else None
+        hamiltonians[d] = (ham, e0, str(ham.metadata.get("source", "unknown")), hf_energy)
     print(f"  All {len(hamiltonians)} Hamiltonians ready.")
 
     # Phase 1.5 (optional): SBRG baseline energies
@@ -83,13 +85,13 @@ def run_from_config(config_path: Path) -> dict[str, Path]:
         else:
             print(f"  Running SBRG baseline + Hamiltonian transform on {len(hamiltonians)} Hamiltonians...")
             for d in list(hamiltonians.keys()):
-                ham, e0, source = hamiltonians[d]
+                ham, e0, source, hf_energy = hamiltonians[d]
                 try:
                     transformed_ham, baseline = compute_sbrg_initializer(ham)
                 except Exception:
                     transformed_ham = ham
                     baseline = {"status": "failed", "error": "compute_sbrg_initializer raised"}
-                hamiltonians[d] = (transformed_ham, e0, source)
+                hamiltonians[d] = (transformed_ham, e0, source, hf_energy)
                 sbrg_baselines[d] = baseline
                 status = baseline.get("status", "?")
                 eng = baseline.get("energy")
@@ -101,7 +103,7 @@ def run_from_config(config_path: Path) -> dict[str, Path]:
     task_keys: list[tuple[float, int]] = []
     for distance in config["distances_angstrom"]:
         d = float(distance)
-        ham, _, _ = hamiltonians[d]
+        ham, _, _, _ = hamiltonians[d]
         for k in config["k_values"]:
             k_int = int(k)
             for init_idx in range(opt_config.n_init):
@@ -127,7 +129,7 @@ def run_from_config(config_path: Path) -> dict[str, Path]:
     results: list[dict[str, Any]] = []
     for distance in config["distances_angstrom"]:
         d = float(distance)
-        ham, e0, source = hamiltonians[d]
+        ham, e0, source, hf_energy = hamiltonians[d]
         for k in config["k_values"]:
             k_int = int(k)
             best = min(results_map[(d, k_int)], key=lambda r: r.energy)
@@ -137,6 +139,8 @@ def run_from_config(config_path: Path) -> dict[str, Path]:
                 "ground_energy": e0,
                 "energy": best.energy,
                 "energy_gap": best.energy - e0,
+                "hartree_fock_energy": hf_energy,
+                "hartree_fock_gap": None if hf_energy is None else hf_energy - e0,
                 "sbrg_energy": sbrg_baselines.get(d, {}).get("energy") if sbrg_baselines else None,
                 "sbrg_status": sbrg_baselines.get(d, {}).get("status") if sbrg_baselines else None,
                 "source": source,

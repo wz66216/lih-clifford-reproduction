@@ -3,6 +3,8 @@ import json
 import lih_repro.cli as cli
 
 from lih_repro.cli import run_from_config
+from lih_repro.chemistry import cache_path_for_distance
+from lih_repro.pauli import PauliHamiltonian, PauliTerm
 
 
 def test_run_from_config_creates_results_plot_and_report(tmp_path):
@@ -28,6 +30,45 @@ def test_run_from_config_creates_results_plot_and_report(tmp_path):
     assert outputs["results_json"].exists()
     assert outputs["plot_png"].exists()
     assert outputs["report_md"].exists()
+
+
+def test_run_from_config_records_hartree_fock_comparison_from_cache(tmp_path):
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    ham = PauliHamiltonian(
+        n_qubits=1,
+        terms=(PauliTerm(1.0, "Z"),),
+        metadata={"source": "openfermion-pyscf", "hf_energy": 0.25},
+    )
+    cache_path_for_distance(cache_dir, 1.4).write_text(json.dumps(ham.to_dict()), encoding="utf-8")
+    config = {
+        "distances_angstrom": [1.4],
+        "k_values": [0],
+        "n_qubits": 1,
+        "layers": 0,
+        "seed": 123,
+        "continuous_starts": 1,
+        "greedy_iterations": 0,
+        "n_init": 1,
+        "max_workers": 1,
+        "output_dir": str(tmp_path / "out"),
+        "hamiltonian_cache_dir": str(cache_dir),
+        "reference_pdf": str(tmp_path / "ener.pdf"),
+        "reference_csv": str(tmp_path / "reference.csv"),
+        "allow_synthetic_fixture": False,
+    }
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    outputs = run_from_config(config_path)
+
+    rows = json.loads(outputs["results_json"].read_text(encoding="utf-8"))
+    assert rows[0]["ground_energy"] == -1.0
+    assert rows[0]["hartree_fock_energy"] == 0.25
+    assert rows[0]["hartree_fock_gap"] == 1.25
+    report_text = outputs["report_md"].read_text(encoding="utf-8")
+    assert "HF - E0" in report_text
+    assert "0.25" in report_text
 
 
 def test_safe_worker_count_defaults_to_task_count_and_is_at_least_one(monkeypatch):
