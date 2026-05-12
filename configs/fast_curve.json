@@ -13,5 +13,6 @@
   "hamiltonian_cache_dir": "data/hamiltonians",
   "reference_pdf": "arXiv-2308.11616v2/figs/ener.pdf",
   "reference_csv": "data/reference/ener_digitized.csv",
+  "use_sbrg_baseline": false,
   "allow_synthetic_fixture": false
 }
