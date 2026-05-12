@@ -21,15 +21,22 @@ class SBRGUnavailable(RuntimeError):
 def _import_sbrg():
     """Import the SBRG library or raise SBRGUnavailable with a clear message.
 
-    Uses find_spec first for a clean "not installed" path, then attempts
-    the actual import so that broken installs are also caught.
+    Finds SBRG first, then attempts the actual import. Both "not installed"
+    and "broken install" (missing transitive dependencies) produce
+    SBRGUnavailable rather than raw ImportError.
     """
     if importlib.util.find_spec("SBRG") is None:
         raise SBRGUnavailable(
             "SBRG library is not installed. "
             "Clone github.com/hongyehu/SBRG and install dependencies via conda."
         )
-    import SBRG  # type: ignore[import-not-found]
+    try:
+        import SBRG  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise SBRGUnavailable(
+            f"SBRG library found but failed to import: {exc}. "
+            "Check that all conda dependencies (numpy, numba, qutip, scipy) are installed."
+        ) from exc
 
     return SBRG
 

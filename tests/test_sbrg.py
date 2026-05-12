@@ -44,6 +44,23 @@ def test_pauli_to_sbrg_model_raises_when_unavailable(monkeypatch, two_qubit_ham)
         pauli_to_sbrg_model(two_qubit_ham)
 
 
+def test_compute_sbrg_baseline_raises_on_broken_install(monkeypatch, two_qubit_ham):
+    """When SBRG is found but import fails, SBRGUnavailable is raised."""
+    def fake_find_spec(name, package=None):
+        if name == "SBRG":
+            return object()  # non-None → "found"
+        return None
+
+    def fake_import(name, *args, **kwargs):
+        raise ImportError("numba not found")
+
+    monkeypatch.setattr("importlib.util.find_spec", fake_find_spec)
+    monkeypatch.setattr("builtins.__import__", fake_import)
+
+    with pytest.raises(SBRGUnavailable, match="failed to import"):
+        compute_sbrg_baseline(two_qubit_ham)
+
+
 def test_compute_sbrg_baseline_success_with_fake_sbrg(monkeypatch, two_qubit_ham):
     class FakeTerm:
         def __init__(self, val):
