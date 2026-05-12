@@ -18,7 +18,7 @@ from lih_repro.chemistry import load_or_generate_hamiltonian
 from lih_repro.figure_reference import load_reference_csv, reference_pdf_status
 from lih_repro.optimizer import OptimizerConfig, OptimizationResult, _run_single_restart
 from lih_repro.plotting import plot_energy_gaps
-from lih_repro.sbrg import _sbrg_available, compute_sbrg_baseline
+from lih_repro.sbrg import _sbrg_available, compute_sbrg_baseline, compute_sbrg_initializer
 from lih_repro.report import write_report
 
 
@@ -76,17 +76,23 @@ def run_from_config(config_path: Path) -> dict[str, Path]:
 
     # Phase 1.5 (optional): SBRG baseline energies
     use_sbrg = bool(config.get("use_sbrg_baseline", False))
-    sbrg_baselines: dict[float, dict[str, object]] = {}
+    sbrg_baselines: dict[float, dict[str, Any]] = {}
     if use_sbrg:
         if not _sbrg_available():
             print("  WARNING: use_sbrg_baseline=True but SBRG library not available; skipping")
         else:
-            print(f"  Running SBRG baseline on {len(hamiltonians)} Hamiltonians...")
-            for d, (ham, _, _) in hamiltonians.items():
-                sbrg_result = compute_sbrg_baseline(ham)
-                sbrg_baselines[d] = sbrg_result
-                status = sbrg_result.get("status", "?")
-                eng = sbrg_result.get("energy")
+            print(f"  Running SBRG baseline + Hamiltonian transform on {len(hamiltonians)} Hamiltonians...")
+            for d in list(hamiltonians.keys()):
+                ham, e0, source = hamiltonians[d]
+                try:
+                    transformed_ham, baseline = compute_sbrg_initializer(ham)
+                except Exception:
+                    transformed_ham = ham
+                    baseline = {"status": "failed", "error": "compute_sbrg_initializer raised"}
+                hamiltonians[d] = (transformed_ham, e0, source)
+                sbrg_baselines[d] = baseline
+                status = baseline.get("status", "?")
+                eng = baseline.get("energy")
                 eng_str = f"{eng:.6f}" if isinstance(eng, (int, float)) else str(eng)
                 print(f"    d={d:.1f}Å  SBRG {status}  energy={eng_str}")
 

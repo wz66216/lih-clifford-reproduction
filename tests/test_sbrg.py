@@ -9,6 +9,10 @@ from lih_repro.pauli import PauliHamiltonian, PauliTerm
 from lih_repro.sbrg import (
     SBRGUnavailable,
     _sbrg_available,
+    _multiply_pauli_strings,
+    _pauli_commutes,
+    _sbrg_mat_to_pauli_string,
+    compute_sbrg_initializer,
     compute_sbrg_baseline,
     pauli_to_sbrg_model,
 )
@@ -135,3 +139,82 @@ def test_compute_sbrg_baseline_failure_with_fake_sbrg(monkeypatch, two_qubit_ham
     assert "energy" in result
     assert "error" in result
     assert "SBRG flow diverged" in result["error"]
+
+
+def test_pauli_commutes():
+    assert _pauli_commutes("IZ", "ZI") is True
+    assert _pauli_commutes("IX", "XZ") is False
+    assert _pauli_commutes("XZ", "ZX") is True
+    assert _pauli_commutes("XY", "YX") is True
+
+
+def test_multiply_pauli_strings():
+    r, p = _multiply_pauli_strings("X", "Y")
+    assert r == "Z"
+    assert abs(p - 1j) < 1e-10
+    r, p = _multiply_pauli_strings("X", "X")
+    assert r == "I" and abs(p - 1) < 1e-10
+
+
+def test_sbrg_mat_to_pauli_string():
+    class FakeMat:
+        def __init__(self, Xs, Zs):
+            self.Xs = frozenset(Xs)
+            self.Zs = frozenset(Zs)
+
+    mat = FakeMat({0, 2}, {1, 2})
+    assert _sbrg_mat_to_pauli_string(mat, 4) == "XZYI"
+
+
+def test_compute_sbrg_initializer_success(monkeypatch, two_qubit_ham):
+    class FakeMat:
+        def __init__(self, Xs, Zs):
+            self.Xs = frozenset(Xs)
+            self.Zs = frozenset(Zs)
+
+    class FakeTerm:
+        def __init__(self, *arg):
+            if len(arg) >= 2:
+                self.mat = arg[0]
+                self.val = arg[1]
+            elif len(arg) == 1:
+                self.mat = arg[0]
+                self.val = 1.0
+            else:
+                self.mat = FakeMat(set(), set())
+                self.val = 1.0
+
+    class FakeSBRG:
+        __version__ = "0.1.0"
+        Term = FakeTerm
+
+        @staticmethod
+        def mkMat(mu):
+            Xs = {i for i, x in enumerate(mu) if x == 1 or x == 2}
+            Zs = {i for i, x in enumerate(mu) if x == 2 or x == 3}
+            return FakeMat(Xs, Zs)
+
+        class Model:
+            def __init__(self):
+                self.size = 0
+                self.terms = []
+
+        class Ham:
+            def __init__(self, *arg):
+                self.terms = [FakeTerm(FakeMat({0}, set()), -5.0)]
+
+        class SBRG:
+            def __init__(self, model):
+                self.Heff = FakeSBRG.Ham()
+                self.RCC = [FakeTerm(FakeMat({0}, set()), 1.0)]
+
+            def run(self):
+                pass
+
+    monkeypatch.setattr("lih_repro.sbrg._import_sbrg", lambda: FakeSBRG)
+
+    transformed, baseline = compute_sbrg_initializer(two_qubit_ham)
+
+    assert baseline["status"] == "ok"
+    assert baseline["sbrg_version"] == "0.1.0"
+    assert len(transformed.terms) > 0
