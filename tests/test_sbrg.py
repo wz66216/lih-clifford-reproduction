@@ -70,21 +70,20 @@ def test_compute_sbrg_baseline_success_with_fake_sbrg(monkeypatch, two_qubit_ham
         __version__ = "0.1.0"
 
         class Term:
-            def __init__(self, mat, val=1.0):
-                self.mat = mat
-                self.val = val
+            def __init__(self, *arg):
+                self.mat, self.val = arg if len(arg) == 2 else (arg[0], 1.0)
 
         @staticmethod
         def mkMat(mu):
             return tuple(mu)
 
         class Model:
-            def __init__(self, size, terms):
-                self.size = size
-                self.terms = terms
+            def __init__(self):
+                self.size = 0
+                self.terms = []
 
         class Ham:
-            def __init__(self):
+            def __init__(self, *arg):
                 self.terms = [FakeTerm(-7.5), FakeTerm(-7.2)]
 
         class SBRG:
@@ -110,18 +109,17 @@ def test_compute_sbrg_baseline_failure_with_fake_sbrg(monkeypatch, two_qubit_ham
         __version__ = "0.1.0"
 
         class Term:
-            def __init__(self, mat, val=1.0):
-                self.mat = mat
-                self.val = val
+            def __init__(self, *arg):
+                self.mat, self.val = arg if len(arg) == 2 else (arg[0], 1.0)
 
         @staticmethod
         def mkMat(mu):
             return tuple(mu)
 
         class Model:
-            def __init__(self, size, terms):
-                self.size = size
-                self.terms = terms
+            def __init__(self):
+                self.size = 0
+                self.terms = []
 
         class SBRG:
             def __init__(self, model):

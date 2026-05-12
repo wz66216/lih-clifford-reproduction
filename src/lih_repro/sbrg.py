@@ -61,9 +61,12 @@ def pauli_to_sbrg_model(hamiltonian: PauliHamiltonian) -> Any:
     for term in hamiltonian.terms:
         mu = [_PAULI_TO_SBRG[label] for label in term.pauli]
         mat = _sbrg.mkMat(mu)
-        terms.append(_sbrg.Term(mat, val=float(term.coefficient)))
+        terms.append(_sbrg.Term(mat, float(term.coefficient)))
 
-    return _sbrg.Model(size=hamiltonian.n_qubits, terms=terms)
+    model = _sbrg.Model()
+    model.size = hamiltonian.n_qubits
+    model.terms = terms
+    return model
 
 
 def compute_sbrg_baseline(hamiltonian: PauliHamiltonian) -> dict[str, Any]:
@@ -86,6 +89,10 @@ def compute_sbrg_baseline(hamiltonian: PauliHamiltonian) -> dict[str, Any]:
             "error": str(exc),
         }
 
+    # SBRG.Heff is a Ham object. The RG flow produces a nearly-diagonal
+    # effective Hamiltonian; min(|t.val|) is an approximate ground energy.
+    # For rigorous ground energy, the full effective Hamiltonian should be
+    # diagonalized or SBRG.grndstate_blk() / SBRG.energy() should be used.
     ground_energy: float | None = None
     n_terms_out = 0
     if hasattr(sbrg_instance, "Heff") and sbrg_instance.Heff is not None:
