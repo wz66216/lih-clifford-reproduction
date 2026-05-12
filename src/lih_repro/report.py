@@ -10,6 +10,7 @@ def write_report(
     results: list[dict[str, Any]],
     reference_status: dict[str, Any],
     used_synthetic_fixture: bool,
+    sbrg_baselines: dict[float, dict[str, object]] | None = None,
 ) -> None:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -39,8 +40,8 @@ def write_report(
         "",
         "## Results",
         "",
-        "| distance_angstrom | k | E0 | E | E - E0 | source |",
-        "|---:|---:|---:|---:|---:|---|",
+        "| distance_angstrom | k | E0 | E | E - E0 | SBRG E | SBRG status | source |",
+        "|---:|---:|---:|---:|---:|---:|---|---|",
     ]
     for row in results:
         ground_energy = row.get("ground_energy")
@@ -48,7 +49,8 @@ def write_report(
         source = row.get("source", "")
         lines.append(
             f"| {row['distance_angstrom']} | {row['k']} | {ground_energy if ground_energy is not None else ''} | "
-            f"{energy if energy is not None else ''} | {row.get('energy_gap', '')} | {source} |"
+            f"{energy if energy is not None else ''} | {row.get('energy_gap', '')} | {row.get('sbrg_energy', '')} | "
+            f"{row.get('sbrg_status', '')} | {source} |"
         )
     if used_synthetic_fixture:
         lines.extend(
