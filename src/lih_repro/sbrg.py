@@ -90,7 +90,7 @@ def compute_sbrg_baseline(hamiltonian: PauliHamiltonian) -> dict[str, Any]:
         }
 
     # SBRG.Heff is a Ham object. The RG flow produces a nearly-diagonal
-    # effective Hamiltonian; min(|t.val|) is an approximate ground energy.
+    # effective Hamiltonian; min(t.val) is an approximate ground energy.
     # For rigorous ground energy, the full effective Hamiltonian should be
     # diagonalized or SBRG.grndstate_blk() / SBRG.energy() should be used.
     ground_energy: float | None = None
