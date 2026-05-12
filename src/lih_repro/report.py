@@ -52,6 +52,26 @@ def write_report(
             f"{energy if energy is not None else ''} | {row.get('energy_gap', '')} | {row.get('sbrg_energy', '')} | "
             f"{row.get('sbrg_status', '')} | {source} |"
         )
+    if sbrg_baselines:
+        lines.extend(
+            [
+                "",
+                "## SBRG Baseline",
+                "",
+                "Spectrum Bifurcation Renormalization Group (SBRG) provides an independent, classically-computed",
+                "baseline energy for each bond length. The LiH paper uses SBRG for initialization;",
+                "here it serves as an optional reference alongside the Clifford+kRz optimizer.",
+                "",
+                "| distance_angstrom | SBRG energy | status | terms_in | terms_out |",
+                "|---:|---:|---|---:|---:|",
+            ]
+        )
+        for d, bl in sorted(sbrg_baselines.items()):
+            eng = bl.get("energy")
+            eng_str = f"{eng:.6f}" if isinstance(eng, (int, float)) else str(eng)
+            lines.append(
+                f"| {d} | {eng_str} | {bl.get('status', '')} | {bl.get('n_terms_in', '')} | {bl.get('n_terms_out', '')} |"
+            )
     if used_synthetic_fixture:
         lines.extend(
             [
